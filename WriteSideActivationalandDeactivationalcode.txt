@@ -32,6 +32,18 @@ private boolean deactivateOptional(JEntity jEntity){
     return hasChildData;
 }
 
+
+<----------------------IN ROOT VALIDATION DOCUMENT FINALIZE METHOD write side------------------------------->
+                                deactivateOptional(me);
+
+
+
+<---------------------- IN ROOT PRE VALIDATION INIT METHOD. write side
+ 
+                                   activateAll(me);
+
+
+
 /**
  * Goes through the whole map and activates all JOptionalGroups. Must be called on PreValidation.
  * @param entity Any JEntity, should probably be the root.
@@ -46,3 +58,89 @@ private void activateAll(Entity entity){
         ((JOptionalGroup)entity).setActivated(true);
     }
 }
+
+
+<------------------------------------------------------------------------Read Side Environment Code ------------------------------------------------------->
+
+
+
+ READ SIDE ENVIRONMENT
+ 
+ /**
+     * Checks to see if the given JEntity is present.
+     * <br><b>Requires the following Methods:</b>
+     * <ul>
+     *     <li>hasChildData()</li>
+     *     <li>makeXPath()</li>
+     * </ul>
+     * @param en The entity you would like to check for.
+     * @param extraMsg Any extra text you would like to add to the error message.
+     */
+    private void mandatoryCheck(JEntity en, String extraMsg){
+        boolean hasData = false;
+        if((en instanceof JOptionalGroup)) {
+            if(((JOptionalGroup)en).isActivated() == true) {
+                hasData = hasChildData(en);
+            }
+        }else {
+            hasData = hasChildData(en);
+        }
+        if(hasData == false){
+            en.reportError(en, "Missing mandatory data: " + makeXPath(en) + "; " +extraMsg);
+        }
+    }
+
+    /**
+     * Checks to see if a JEntity contains child data or not.
+     * @param en The entity to check.
+     * @return True or False
+     */
+    private boolean hasChildData(JEntity en){
+        if(!(en instanceof JElement)){
+            for(int i=0; i<en.getChildrenCount(); i++){
+                //if a child has data, then i have data
+                if(hasChildData(en.getJChild(i)) == true){
+                    return true;
+                }
+            }
+        }else{//this is an element
+            return ((JElement)en).hasData();
+        }
+        return false;//to make compiler happy
+    }
+
+
+    /**
+     * Uses a regular expression to turn a javaPath into a properly formatted XPath expression
+     * @param en The entity you would like a XPath for
+     * @return A XPath expression
+     */
+    private String makeXPath(JEntity en) {
+        String path = en.getFullyQualifiedJavaName().replaceAll("\\.[^\\.]+Rep(?=\\.)", "");
+        String[] parts = path.split("\\.");
+        String xpath = "/" + en.getJRoot().getPropertyString("name");
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i];//ignore the root name
+            part = Character.toUpperCase(part.charAt(0)) + part.substring(1);
+            xpath += "/" + part;
+        }
+        return xpath;
+    }
+    
+        /**
+     * Checks to see if the given JRepeatableGroup has a specific repetition, errors if not found.
+     * <br><b>Requires the following Methods:</b>
+     * <ul>
+     *     <li>makeXPath()</li>
+     * </ul>
+     * @param group The JRepeatableGroup you would like to check.
+     * @param field javaName of the field you want to check
+     * @param value value of field you want to check for.
+     * @param extraMsg Any extra text you would like to add to the error message.
+     */
+    private void mandatoryRep(JRepeatableGroup group, String field, String value, String extraMsg){
+        if(!group.hasRepetition(field, value)) {
+            group.reportError(group, "Missing mandatory data: " + makeXPath(group) + " with " +
+                                     field + " = " + value + " is required;" + extraMsg);
+        }
+    }
