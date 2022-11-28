@@ -10,3 +10,22 @@
         }
         return false;
     }
+
+
+
+
+**********************************************************************************
+DROP GROUP CONDITIONS-- && convert to conditions
+-do not put choices
+-set data type as String
+-put code in write side main parent folder.
+
+
+Codes allowed, else drop ItemScheduleQualifier and ItemScheduleDate:
+068: Scheduled Ship Date
+
+if(!itemScheduleQualifier.getString().matches("068"))
+    {
+        itemScheduleQualifier.delete();
+        itemScheduleDate.delete();
+    }
