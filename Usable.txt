@@ -1,0 +1,48 @@
+/**
+ * Recursively goes through the map and turns off any JOptionalGroups that don't have data.
+ * Must be called on DocFinalize.
+ * @param jEntity Any JEntity, should probably be the root.
+ */
+private boolean deactivateOptional(JEntity jEntity){
+    boolean hasChildData = false;
+    if (jEntity instanceof JOptionalGroup){
+        for (int i=0; i<jEntity.getChildrenCount(); i++){
+            JEntity child = (JEntity)jEntity.getJChild(i);
+            if (child != null && deactivateOptional(child)){
+                hasChildData = true;
+            }
+        }
+        if (!hasChildData){
+            ((JOptionalGroup)jEntity).setActivated(false);
+        }
+        return hasChildData;
+    } else if (!(jEntity instanceof JElement)){
+        for (int i=0; i<jEntity.getChildrenCount(); i++){
+            JEntity child = (JEntity)jEntity.getJChild(i);
+            if (child != null && deactivateOptional(child)){
+                hasChildData = true;
+            }
+        }
+        return hasChildData;
+    } else if (jEntity instanceof JElement){
+        if (jEntity != null && jEntity.getProperty("defaultValue") == null && ((JElement)jEntity).hasData()){
+            return true;
+        }
+    }
+    return hasChildData;
+}
+
+/**
+ * Goes through the whole map and activates all JOptionalGroups. Must be called on PreValidation.
+ * @param entity Any JEntity, should probably be the root.
+ */
+private void activateAll(Entity entity){
+    for (int i = 0; i < entity.getTemplateChildrenCount(); i++) {
+        if(!(entity.getTemplateChild(i) instanceof JElement)) {
+            activateAll(entity.getTemplateChild(i));
+        }
+    }
+    if (entity instanceof JOptionalGroup) {
+        ((JOptionalGroup)entity).setActivated(true);
+    }
+}
