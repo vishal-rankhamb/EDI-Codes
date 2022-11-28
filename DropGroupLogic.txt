@@ -1,0 +1,12 @@
+<==============================  Codes Allowed, else Drop Group  ====================================>
+     * This method needs to be placed in the environment of a (write side) JRepeatableGroup to
+     * override its verify() method. Add the condition you need.
+     * @param entity FI4 passes each read side JRepetition as this parameter
+     * @return True(will create a repetition) or False(will not create a repetition)
+     */
+    public boolean verify(JEntity entity) {
+        if(entity.getString("addressTypeCode").matches("SF || ST")) {
+            return true;
+        }
+        return false;
+    }
