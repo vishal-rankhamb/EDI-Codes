@@ -307,9 +307,1265 @@ if(!invoiceLine.consumerPackageCode.hasData() && !invoiceLine.eAN.hasData() && !
 
 ********************************************************************************
 
+if(_source().primaryPhone.hasData() && _source().primaryEmail.hasData() && _source().primaryFax.hasData()){
+        contactNumber1.setString(_source().primaryPhone.getString());
+        contactQual1.setString("TE");
+        contactNumber2.setString(_source().primaryEmail.getString());
+        contactQual2.setString("EM");
+    }else if(!_source().primaryPhone.hasData() && _source().primaryEmail.hasData() && _source().primaryFax.hasData()){
+        contactNumber1.setString(_source().primaryEmail.getString());
+        contactQual1.setString("EM");
+        contactNumber2.setString(_source().primaryFax.getString());
+        contactQual2.setString("FX");
+    }else if(_source().primaryPhone.hasData() && !_source().primaryEmail.hasData() && _source().primaryFax.hasData()){
+        contactNumber1.setString(_source().primaryPhone.getString());
+        contactQual1.setString("TE");
+        contactNumber2.setString(_source().primaryFax.getString());
+        contactQual2.setString("FX");
+    }else if(_source().primaryPhone.hasData() && _source().primaryEmail.hasData() && !_source().primaryFax.hasData()){
+        contactNumber1.setString(_source().primaryPhone.getString());
+        contactQual1.setString("TE");
+        contactNumber2.setString(_source().primaryEmail.getString());
+        contactQual2.setString("EM");
+    }else if(_source().primaryPhone.hasData() && !_source().primaryEmail.hasData() && !_source().primaryFax.hasData()){
+        contactNumber1.setString(_source().primaryPhone.getString());
+        contactQual1.setString("TE");
+    }else if(!_source().primaryPhone.hasData() && _source().primaryEmail.hasData() && !_source().primaryFax.hasData()){
+        contactNumber1.setString(_source().primaryEmail.getString());
+        contactQual1.setString("EM");
+    }else if(!_source().primaryPhone.hasData() && !_source().primaryEmail.hasData() && _source().primaryFax.hasData()){
+        contactNumber1.setString(_source().primaryFax.getString());
+        contactQual1.setString("FX");
+    }
+
+********************************************************************************
+
+
+-----------------------------------------TO SET MIN MAX WHEN QUALIFIER IS PRESENT-------------------------------------------------
+
+if(addressTypeCode.getString().matches("VN") && addressLocationNumber.hasData()){
+        if(addressLocationNumber.getString().length()>5){
+            reportError("min/max for  addressLocationNumber is 1/5 when addressTypeCode= VN");
+        }
+    }
+	
+-----------------------------------------Map character 1- 50 in Address1 character 51- 100 in Address2 ---------------------------
+String regex = "(?<=\\G.{" + 50 + "})";
+    String [] reg= _source().newAddress.split(regex);
+    if(reg.length>=2){
+        header.address1.setString(reg[0]);
+        header.address2.setString(reg[1]);
+    }else if(reg.length==1){
+        header.address1.setString(reg[0]);
+    } 
+	
+-----------------------------------------To Check Tpid------------------------------------------------------------------------
+Write Side -> root -> Env
+
+/**
+ * Checks to see if a lookup was found for the given Element. Should only be used for Vendor Xrefs
+ * Will fail the map if the vendor xref was not found.
+ * @param tpid This will typically be the TradingPartnerId field on the RSX side of the map.
+ */
+private void checkTpid(JElement tpid) {
+    if(!tpid.hasData()) {
+        tpid.reportError(tpid, "TradingPartnerId lookup failed for Lookup_key (Old Value): " + 
+                         tpid.getPropertyString("lookupKey") + " , Lookup_id (Sender): " +
+                         _root().getPropertyString("sender"));
+    }
+}
+
+Write side -> on field -> 
+
+    checkTpid(header.productTransferHeader.tradingPartnerId);
+	
+--------------------------------------------SYSTEM DATE IMPLEMENTATION----------------------------------------------------------
+
+Write ---> " SYSDATE " ---> On Field.
+
+--------------------------------------------Take first 8 characters as the date-------------------------------------------------
+
+
+insert this one in environment
+private String formatDate(String date, String readFormat, String writeFormat) {
+    String newDate = "";
+    if (Str.HasData(date)) {
+        SimpleDateFormat dfRead = new SimpleDateFormat(readFormat);
+        SimpleDateFormat dfWrite = new SimpleDateFormat(writeFormat);
+        dfWrite.setLenient(false);
+        try {
+            newDate = dfWrite.format(dfRead.parse(date));
+            return newDate;
+        } catch (Exception e) {
+            logger.info("Unable to format the date \"" + date + "\"; " + e.getMessage());
+        }
+    }
+    return newDate;
+}
+Insert this one on field
+String date = me.getString();
+    if(date.length() > 8){
+       me.setString(date.substring(0,8));
+    }
+    me.setString(root.formatDate(me.getString(),"yyyyMMdd","yyyy-MM-dd"));
+
+
+
+
+--------------When VendCode= 200458, 202056, 3MESPE, or 3MHEALTH SPS to append SalesOrgCode in front of the ShipToCode----------
+
+if(root.vendCode.getString().matches("200458|202056|3MESPE|3MHEALTH")){
+        itemCode.setString(root.salesOrgCode.getString()+"-"+itemCode.getString());
+    }
+	
+--------------------------
+
+
+public void init() {
+    String lookUpValue1="";
+    if(addressTypeCode.getString().matches("ST")){
+        lookUpValue1=root.turnaroundLookup(root.header.orderHeader.purchaseOrderNumber.getString(),"write.header.address.addressRep.addressLocationNumber_ST","","");
+        if(lookUpValue1.length()>0){
+            addressLocationNumber.setString(lookUpValue1);
+        }
+        
+    }
+      String lookUpValue2="";
+    if(addressTypeCode.getString().matches("ST")){
+        lookUpValue2=root.turnaroundLookup(root.header.orderHeader.purchaseOrderNumber.getString(),"write.header.address.addressRep.city_ST","","");
+        if(lookUpValue2.length()>0){
+            city.setString(lookUpValue2);
+        }
+        
+    }  
+    String lookUpValue3="";
+    if(addressTypeCode.getString().matches("ST")){
+        lookUpValue3=root.turnaroundLookup(root.header.orderHeader.purchaseOrderNumber.getString(),"write.header.address.addressRep.state_ST","","");
+        if(lookUpValue3.length()>0){
+            state.setString(lookUpValue3);
+        }
+        
+    }
+    String lookUpValue4="";
+    if(addressTypeCode.getString().matches("ST")){
+        lookUpValue4=root.turnaroundLookup(root.header.orderHeader.purchaseOrderNumber.getString(),"write.header.address.addressRep.postalCode_ST","","");
+        if(lookUpValue4.length()>0){
+            postalCode.setString(lookUpValue4);
+        }
+        
+    }
+    String lookUpValue5="";
+    if(addressTypeCode.getString().matches("ST")){
+        lookUpValue5=root.turnaroundLookup(root.header.orderHeader.purchaseOrderNumber.getString(),"write.header.address.addressRep.country_ST","","");
+        if(lookUpValue5.length()>0){
+            country.setString(lookUpValue5);
+        }
+        
+    }
+    
+    
+
+
+
+}//end-method
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void setHeader(JEntity jEntity){
+	if(jEntity instanceof JElement){
+		((JElement)jEntity).setString(jEntity.getLabel());
+	}else{
+		for(int i=0; i < jEntity.getChildrenCount(); i++){
+			setHeader(jEntity.getJChild(i));
+		}
+	}	
+}
+ 
+ 	setHeader(header);
+	
+	
+	
+	
+	Integer counter = 0;
+	for(int i = 0; i < me.getChildrenCount(); i++){
+		counter++;
+		me._getRep(i).lINE.setNumber(counter);
+		me._getRep(i).sUB_LINE_NO.setNumber(counter);
+	}
+	
+	
+	
+	--------------------------SPS to set if group is present:
+PD: Promotional Deal Number [Price Bracket Identifier]-------------------------------------------------------------------
+
+	
+	int str=root._source().header.priceBracketIdentifications.getChildrenCount();
+    if(str>=1){
+        me.setString("PD");
+    }
 
 
 ********************************************************************************
 
 
+
+/**
+ * Checks a JElement if it contains up to a number of decimal places
+ * Errors if invalid.
+ * @param elmnt the JElement you want to validate
+ * @param decimalPlaces the max number of decimal places allowed in this element
+ */
+private void validateMaxDecimals(JElement elmnt, int decimalPlaces) {
+    String num = elmnt.getString();
+    String decPlaces = String.valueOf(decimalPlaces);
+    if(!NumberUtilities.IsFullyNumeric(num)){
+        elmnt.reportError(elmnt, "not a valid number: " + num);
+    }
+    if(elmnt.hasData() && !num.matches("\\d+\\.?\\d{0," + decPlaces +"}")) {
+        elmnt.reportError(elmnt, "Invalid data: " + num + " Located at: " + makeXPath(elmnt) + ". Data should contain a number with at most " + decPlaces + " decimal places.");
+    }
+}
+
+private void addDecimals(JElement elmnt, int decimalPlaces){
+    elmnt.setString(NumberUtilities.Format.EnsureDecimalDigits(elmnt.getString(), decimalPlaces));
+}
+
+/**
+* Checks a JElement if it is in integer
+* Errors if invalid.
+* @Param elmnt the JElement you want to validate
+*/
+private void validateInt(JElement elmnt) {
+    String num = elmnt.getString();
+    if(!num.matches("\\d+")) {
+        elmnt.reportError(elmnt, "Invalid data: "+ num + " Located at: " + makeXPath(elmnt) + ". Data should contain a number.");
+    }
+}
+
+
+ if(me.hasData()){
+        root.validateMaxDecimals(me,2);
+        root.addDecimals(me, 2);
+    }
+	
+	if(me.hasData()){
+        root.validateMaxDecimals(me,2);
+        if(me.getString().contains(".")){
+            if(me.getString().split("\\.")[1].length() > 0){
+                if(!me.getString().split("\\.")[1].matches("0*")){
+                    reportError("orderQty must contain only zeros in decimal");
+                }
+            }
+        }
+    }
+	
+	
+	/**
+ * Goes through the whole map and activates all JOptionalGroups. Must be called on PreValidation.
+ * @param entity Any JEntity, should probably be the root.
+ */
+private void activateAll(Entity entity){
+    for (int i = 0; i < entity.getTemplateChildrenCount(); i++) {
+        if(!(entity.getTemplateChild(i) instanceof JElement)) {
+            activateAll(entity.getTemplateChild(i));
+        }
+    }
+    if (entity instanceof JOptionalGroup) {
+        ((JOptionalGroup)entity).setActivated(true);
+    }
+}
+
+
+if(_parent()._parent().lineItemAcknowledgement._getRep().itemStatusCode.getString().matches("DR")){
+        noteCode.setString("GEN");
+        note.setString(_parent()._parent().lineItemAcknowledgement._getRep().itemScheduleDate.getString());
+    }
+    if(_parent()._parent().lineItemAcknowledgement._getRep().itemStatusCode.getString().matches("IS")){
+        noteCode.setString("SPE");
+        note.setString(_parent()._parent().orderLine.internationalStandardBookNumber.getString());
+    }
+    if(_parent()._parent().lineItemAcknowledgement._getRep().itemStatusCode.getString().matches("IR|R2")){
+        noteCode.setString("GEN");
+    }
+    if(!note.hasData()){
+        note.setString("no notes provided");
+    }
+	
+	
+	if(!orderLine.vendorPartNumber.hasData() && !orderLine.consumerPackageCode.hasData() && !(orderLine.productID.hasRepetition("partNumberQual","MG") && orderLine.productID._getRep("partNumberQual","MG").partNumber.hasData())){
+        reportError("One of VendorPartNumber, ConsumerPackageCode, or PartNumber (where PartNumberQual = MG) is required.");
+    }
+
+
+
+
+
+
+************************************************************************
+---------------------------------------Calculating total amount/qty---------------------
+//TotalAmount validation
+    String totalAmt = "0.0";   
+	//go through LineItems to gather amounts
+    for(int detailIndex = 0; detailIndex < lineItem.getChildrenCount(); detailIndex++) {
+        lineItem.lineItemRep item = lineItem._getRep(detailIndex);
+		String qty = item.invoiceLine.invoiceQty.getString();
+		String price = item.invoiceLine.purchasePrice.getString();
+        if (!qty.matches( "-?\\d+(\\.\\d+)?")  || !price.matches( "-?\\d+(\\.\\d+)?")) return; 
+		String detailTotal = NumberUtilities.Calc.Multiply(price,qty);
+		totalAmt = NumberUtilities.Calc.Add(detailTotal,totalAmt);
+	    //gather lineItem/chargesAllowances
+        for(int sacIndex = 0; sacIndex < item.chargesAllowances.getChildrenCount(); sacIndex++) {
+			lineItem.lineItemRep.chargesAllowances.chargesAllowancesRep sac = item._chargesAllowances(sacIndex);
+			String sacAmount = sac.allowChrgAmt.getString();
+			if(NumberUtilities.IsFullyNumeric(sacAmount)) 
+			{
+    			String indicator = sac.allowChrgIndicator.getString();
+    			if(indicator.matches("A"))
+    			{
+    				totalAmt = NumberUtilities.Calc.SubtractSecondFromFirst(totalAmt,sacAmount);
+    			} else if (indicator.matches("C")){
+    				totalAmt = NumberUtilities.Calc.Add(totalAmt,sacAmount);
+    			}
+			}
+		} // done with lineItem/chargesAllowances
+		//Add taxes to line amount
+		for (int i = 0; i < item.taxes.getChildrenCount(); i++){
+		    lineItem.lineItemRep.taxes.taxesRep txRep = item.taxes._getRep(i);
+		    if (txRep.taxAmount.hasData()){
+		        totalAmt = NumberUtilities.Calc.Add(totalAmt, txRep.taxAmount.getString());
+		    }
+		}
+	} // done with lineItem
+    //gather header/chargesAllowances
+    for(int sacHIndex = 0; sacHIndex < header.chargesAllowances.getChildrenCount(); sacHIndex++) {
+			header.chargesAllowances.chargesAllowancesRep sacH = header._chargesAllowances(sacHIndex);
+			String sacAmount1 = sacH.allowChrgAmt.getString();
+			if(NumberUtilities.IsFullyNumeric(sacAmount1)) 
+			{
+    			String indicator1 = sacH.allowChrgIndicator.getString();
+    			if(indicator1.matches("A"))
+    			{
+    				totalAmt = NumberUtilities.Calc.SubtractSecondFromFirst(totalAmt,sacAmount1);
+    			} else if (indicator1.matches("C")){
+    				totalAmt = NumberUtilities.Calc.Add(totalAmt,sacAmount1);
+    			}
+			}
+	} // done with header/chargesAllowances
+	//Add header taxes to total amount
+	for (int i = 0; i < header.taxes.getChildrenCount(); i++){
+	    header.taxes.taxesRep txRep = header.taxes._getRep(i);
+	    if (txRep.taxAmount.hasData()){
+	        totalAmt = NumberUtilities.Calc.Add(totalAmt, txRep.taxAmount.getString());
+	    }
+	}
+    String value = "0.50";
+	String Decrement = NumberUtilities.Calc.SubtractSecondFromFirst(totalAmt,value);
+	String Increment = NumberUtilities.Calc.Add(totalAmt,value);
+    if(summary.totalAmount.hasData()){
+        if(summary.totalAmount.getNumber().doubleValue() < Double.parseDouble(Decrement) || summary.totalAmount.getNumber().doubleValue() > Double.parseDouble(Increment)){
+            reportError("TotalAmount is (+/- 0.50) the sum of all items (Price*Qty) +/- any allowances and charges.");
+        }
+    } 
+*************************************************************Logical Code Repository*********************************************************************
+
+
+***************************************CCYY-MM-DD HH:MM:SS, SPS to only source first 10 characters as the date*******************************************
+   
+    if(me.hasData()){ 
+        try { 
+            SimpleDateFormat myFormat = new SimpleDateFormat("MM/dd/yyyy"); 
+            myFormat.setLenient(false);//Only allow valid dates 
+            Date tempDate = myFormat.parse(me.getString()); 
+        } catch (Exception err) { 
+            reportError("Invalid date \"" + me.getString() + "\" found in "+ DGEProperties.label.get(me)); 
+        } 
+    }
+
+*******************************if both are present concantonate CarrierAlphaCode and CarrierRouting to this field separated by " - " **************************
+
+ for(int i=0; i<root._source().header.carrierInformation.getChildrenCount(); i++) {
+        if(root._source().header.carrierInformation._getRep(i).carrierAlphaCode.hasData()&&root._source().header.carrierInformation._getRep(i).carrierRouting.hasData()){
+        String s=root._source().header.carrierInformation._getRep(i).carrierAlphaCode.getString();
+        String s1=root._source().header.carrierInformation._getRep(i).carrierRouting.getString();
+        String res=s+"-"+s1;
+       carrierInfo.setString(res);
+    }
+    }
+	
+***********************************************************MetaDropShip****************************************************************************************
+if(me.header.orderHeader.primaryPOTypeCode.getString().equals("DS")) {
+		me.meta.isDropShip.setProperty("insert","Y");
+		me.meta.isDropShip.setString("true");
+	} else {
+		for(int i = 0; i < me.header.orderHeader.additionalPOTypeCodes.getChildrenCount(); i++) {
+			JRepetition poTypeCodeRep = (JRepetition)me.header.orderHeader.additionalPOTypeCodes.getJChild(i);
+			if(((JElement)poTypeCodeRep.getJChild("pOTypeCode")).getString().equals("DS")) {
+				me.meta.isDropShip.setProperty("insert","Y");
+				me.meta.isDropShip.setString("true");
+				break;
+			}
+		}
+	}
+	
+	----------------------------------------------------------------
+	if(header.orderHeader.primaryPOTypeCode.getString().equals("DS")) {
+		meta.isDropShip.setString("true");
+          
+      }
+		else{
+		    if(header.orderHeader.primaryPOTypeCode.getString().equals("SA")){
+		    meta.isDropShip.setString("false");}
+		}
+		
+		
+		 IN ROOT VALIDATION DOCUMENT FINALIZE METHOD write side
+     deactivateOptional(me);
+
+ 
+ IN ROOT PRE VALIDATION INIT METHOD. write side
+ 
+ activateAll(me);
+
+
+WRITE SIDE ENVIRONMENT
+
+/**
+ * Recursively goes through the map and turns off any JOptionalGroups that don't have data.
+ * Must be called on DocFinalize.
+ * @param jEntity Any JEntity, should probably be the root.
+ */
+private boolean deactivateOptional(JEntity jEntity){
+    boolean hasChildData = false;
+    if (jEntity instanceof JOptionalGroup){
+        for (int i=0; i<jEntity.getChildrenCount(); i++){
+            JEntity child = (JEntity)jEntity.getJChild(i);
+            if (child != null && deactivateOptional(child)){
+                hasChildData = true;
+            }
+        }
+        if (!hasChildData){
+            ((JOptionalGroup)jEntity).setActivated(false);
+        }
+        return hasChildData;
+    } else if (!(jEntity instanceof JElement)){
+        for (int i=0; i<jEntity.getChildrenCount(); i++){
+            JEntity child = (JEntity)jEntity.getJChild(i);
+            if (child != null && deactivateOptional(child)){
+                hasChildData = true;
+            }
+        }
+        return hasChildData;
+    } else if (jEntity instanceof JElement){
+        if (jEntity != null && jEntity.getProperty("defaultValue") == null && ((JElement)jEntity).hasData()){
+            return true;
+        }
+    }
+    return hasChildData;
+}
+
+/**
+ * Goes through the whole map and activates all JOptionalGroups. Must be called on PreValidation.
+ * @param entity Any JEntity, should probably be the root.
+ */
+private void activateAll(Entity entity){
+    for (int i = 0; i < entity.getTemplateChildrenCount(); i++) {
+        if(!(entity.getTemplateChild(i) instanceof JElement)) {
+            activateAll(entity.getTemplateChild(i));
+        }
+    }
+    if (entity instanceof JOptionalGroup) {
+        ((JOptionalGroup)entity).setActivated(true);
+    }
+}
+
+
+
+ READ SIDE ENVIRONMENT
+ 
+ /**
+     * Checks to see if the given JEntity is present.
+     * <br><b>Requires the following Methods:</b>
+     * <ul>
+     *     <li>hasChildData()</li>
+     *     <li>makeXPath()</li>
+     * </ul>
+     * @param en The entity you would like to check for.
+     * @param extraMsg Any extra text you would like to add to the error message.
+     */
+    private void mandatoryCheck(JEntity en, String extraMsg){
+        boolean hasData = false;
+        if((en instanceof JOptionalGroup)) {
+            if(((JOptionalGroup)en).isActivated() == true) {
+                hasData = hasChildData(en);
+            }
+        }else {
+            hasData = hasChildData(en);
+        }
+        if(hasData == false){
+            en.reportError(en, "Missing mandatory data: " + makeXPath(en) + "; " +extraMsg);
+        }
+    }
+
+    /**
+     * Checks to see if a JEntity contains child data or not.
+     * @param en The entity to check.
+     * @return True or False
+     */
+    private boolean hasChildData(JEntity en){
+        if(!(en instanceof JElement)){
+            for(int i=0; i<en.getChildrenCount(); i++){
+                //if a child has data, then i have data
+                if(hasChildData(en.getJChild(i)) == true){
+                    return true;
+                }
+            }
+        }else{//this is an element
+            return ((JElement)en).hasData();
+        }
+        return false;//to make compiler happy
+    }
+
+
+    /**
+     * Uses a regular expression to turn a javaPath into a properly formatted XPath expression
+     * @param en The entity you would like a XPath for
+     * @return A XPath expression
+     */
+    private String makeXPath(JEntity en) {
+        String path = en.getFullyQualifiedJavaName().replaceAll("\\.[^\\.]+Rep(?=\\.)", "");
+        String[] parts = path.split("\\.");
+        String xpath = "/" + en.getJRoot().getPropertyString("name");
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i];//ignore the root name
+            part = Character.toUpperCase(part.charAt(0)) + part.substring(1);
+            xpath += "/" + part;
+        }
+        return xpath;
+    }
+    
+        /**
+     * Checks to see if the given JRepeatableGroup has a specific repetition, errors if not found.
+     * <br><b>Requires the following Methods:</b>
+     * <ul>
+     *     <li>makeXPath()</li>
+     * </ul>
+     * @param group The JRepeatableGroup you would like to check.
+     * @param field javaName of the field you want to check
+     * @param value value of field you want to check for.
+     * @param extraMsg Any extra text you would like to add to the error message.
+     */
+    private void mandatoryRep(JRepeatableGroup group, String field, String value, String extraMsg){
+        if(!group.hasRepetition(field, value)) {
+            group.reportError(group, "Missing mandatory data: " + makeXPath(group) + " with " +
+                                     field + " = " + value + " is required;" + extraMsg);
+        }
+    }
+ 
+ 
+ 
+ 
+ in document finalize root node for mandatory hierarchical structure.
+ mandatoryCheck(header, "");
+ mandatoryCheck(header.orderHeader, "");
+ 
+ in document finalize parent node for mandatory hierarchical structure for subfolders.
+ root.mandatoryCheck(lineItemAcknowledgement,"");
+
+
+
+**** CODES ALLOWED, ELSE DROP GROUP(WRITE SIDE-GROUP- ENVIRONMENT) ****						
+
+/**
+     * This method needs to be placed in the environment of a (write side) JRepeatableGroup to
+     * override its verify() method. Add the condition you need.
+     * @param entity FI4 passes each read side JRepetition as this parameter
+     * @return True(will create a repetition) or False(will not create a repetition)
+     */
+    public boolean verify(JEntity entity) {
+        if(entity.getString("addressTypeCode").matches("SF || ST")) {
+            return true;
+        }
+        return false;
+    }
+**********************************************************************************
+DROP GROUP CONDITIONS-- && convert to conditions
+-do not put choices
+-set data type as String
+-put code in write side main parent folder.
+
+
+Codes allowed, else drop ItemScheduleQualifier and ItemScheduleDate:
+068: Scheduled Ship Date
+
+if(!itemScheduleQualifier.getString().matches("068"))
+    {
+        itemScheduleQualifier.delete();
+        itemScheduleDate.delete();
+    }
+
+
+
+***********************************************************************************
+				**** MANDATORY WHEN addressTypeCode=ST ****
+				
+
+if(addressTypeCode.getString().equals("ST")) {
+        root.mandatoryCheck(addressName,"Mandatory when AddressTypeCode = ST");
+		
+		
+		
+*********************************************************************************		
+		CONVERT TO HT FOR RSX
+		
+	if(me.getString().equals("TP")){
+me.setString("TH");
+}
+********************************************************************************	
+	*****Set Meta_IsDropShip to "true"    Set Meta_IsDropShip to "false"*****
+	
+	
+	if(header.orderHeader.primaryPOTypeCode.getString().equals("DS")) {
+meta.setActivated(true);
+meta.isDropShip.setString("true");
+
+}
+else{
+if(header.orderHeader.primaryPOTypeCode.getString().equals("SA")){
+meta.setActivated(true);
+meta.isDropShip.setString("false");}
+}
+
+
 ********************************************************************************
+One of either TermsNetDueDate or TermsNetDueDays is required
+
+checkMandatory(termsNetDueDate,termsNetDueDays);
+checkMandatory(termsNetDueDays,termsNetDueDate);
+
+---------------------------------------------------------------------------------
+WHEN ADDRESS4 IS PRESENT, ADDRESS3 IS REQUIRED.
+
+ if(address2.hasData()){
+        root.mandatoryCheck(address1,"If Address2 is present, Address1 is required.");
+---------------------------------------------------------------------------------
+IF INPUT IS LONGER THAN 80 CHARACTERS, SPS TO TRUNCATE TO BE 80.
+-do not put min max value in read side
+-put only max valueon write side
+-if mentioned mandatory=Y set it only in read field and not in write side
+
+------------------------------------------------------------------------------------
+CHOICES MANDATORY
+
+mandatoryRep(header.address, "addressTypeCode", "ST", "");
+------------------------------------------------------------------------------------------
+
+IF NOT PRESENT, SPS MAP TO CREATE ITEMREGISTRY.SUMMARY GROUP AND CALCULATE TOTALLINEITEMNUMBER (only for 846)
+
+String lineNum = "0";
+for (int i = 0; i < structure.getChildrenCount(); i++) {
+write.structure.structureRep liRep = structure._getRep(i);
+lineNum = NumberUtilities.Calc.Add(lineNum, String.valueOf(liRep.lineItem.getChildrenCount()));
+}
+
+if (!root.summary.totalLineItemNumber.hasData()) {
+root.summary.totalLineItemNumber.setString(lineNum.replaceAll("\\.0+$",""));
+}
+
+------------------------------------------------------------------------------------------------
+MAP TO CALCULATE TOTAL NUMBERS OF LINEITEM RECORDS IF NOT PRESENT IN DATA
+
+if (!summary.totalLineItemNumber.hasData()){
+summary.setActivated(true);
+summary.totalLineItemNumber.setNumber(lineItem.getChildrenCount());
+}
+
+-----------------------------------------------------------------------------
+
+AT LEAST ONE ADDRESSLOCATIONNUMBER OR ADDRESSNAME MUST BE PRESENT. 
+
+if(!addressLocationNumber.hasData() && !addressName.hasData()){
+       reportError("One of AddressLocationNumber or AddressName must be present.");
+   }
+   
+   -------------------------------------------------------------------------------------------
+   IF EITHER LOCATIONCODEQUALIFIER OR ADDRESSLOCATIONNUMBER IS PRESENT, THEN BOTH ARE REQUIRED. 
+   
+   checkMandatory(locationCodeQualifier,addressLocationNumber);
+    checkMandatory(addressLocationNumber,locationCodeQualifier);
+	
+------------------------------------------------------------------------------------------------------	
+	  root.checkTpidAndPONum(tradingPartnerId, purchaseOrderNumber);
+	  
+	  
+-----------------------------------------------------------------------------------------------------	  
+	  
+	  for(int i=0; i<header.address.getChildrenCount(); i++) {
+        String addrCode = header.address._getRep(i).addressTypeCode.getString();
+        if (!addrCodeList.contains(addrCode)) {
+            addrCodeList.add(addrCode);
+        }
+        else{
+            reportError("Each type of AddressTypeCode can be sent a max of 1 time per PO.");
+        }
+    }
+--------------------------------------------------------------------------------------------------
+	to remove leading zeros
+me.setString(NumberUtilities.Format.RemoveLeadingZeros(me.getString()));
+
+and that condition will be something like this -
+if(me.getString().length() == 2 && me.getString().startsWith("0"))
+-----------------------------------------------------------------------------------------------------
+PackingMedium and PackingMaterial (if present) valid combinations (enforced by map, else fail):
+CTN
+PLT
+CTN25
+PLT94
+
+
+if(packingMedium.hasData() && packingMaterial.hasData()){
+        if(packingMedium.getString().equals("CTN") && !packingMaterial.getString().equals("25")){
+            reportError("PackingMedium and PackingMaterial valid combination is CTN25");
+     
+        }
+        if(packingMedium.getString().equals("PLT") && !packingMaterial.getString().equals("94")){
+            reportError("PackingMedium and PackingMaterial valid combination is PLT94");
+     
+        }
+    }
+	
+-------------------------------------------------------------------------------------------------------------
+QUALIFIER SOURCING
+if(_source().weightQualifier.getString().matches("G")){
+    packWeight.setString(_source.packWeight.getString());
+}
+
+OR IN WRITE SOURCE FIELD (make changes after rep)
+ 
+ read.orderLevel.orderLevelRep.packLevel.packLevelRep.physicalDetails.physicalDetailsRep[weightQualifier=G].packWeight
+ 
+ --------------------------------------------------------------------------------------------------------------------------
+     RSX TO CSV TO SET HEADER IN VALIDATION ROOT WRITE SIDE
+	 
+	 public void documentFinalize(ValidationEvent e) {
+    setHeader(header);
+}//end-method
+
+IN WRITE ENVIRONMENT 
+/**
+     * Sets the column headers for a CSV header group. These will be set as the name of each field.
+     * @Param jEntity The header group that will be printed before each item.
+     */
+    private void setHeader(JEntity jEntity) {
+        if(jEntity instanceof JElement) {
+            ((JElement)jEntity).setString(jEntity.getLabel());
+        }else {
+            for(int i=0; i < jEntity.getChildrenCount(); i++){
+                setHeader(jEntity.getJChild(i));
+            }
+        }
+    }
+	
+----------------------------------------------------------------------------------------
+SPS: Please quote wrap value
+ me.setString("\""+me.getString()+"\"");
+ 
+ -------------------------------------------------------------------------------------
+ SPS: Concatenate all source field occurrences into one output field.
+ 
+ String note = "";
+    for(JEntity nteRep : root._source().header.notes){
+        if(nteRep.getString("noteCode").matches("GEN") && nteRep.getString("note").length() > 0){
+            note += nteRep.getString("note")+" ";
+        }
+    }
+    if(Str.HasData(note)){
+        message.setString("\""+note.trim()+"\"");
+    }
+	---------------------------------------------------------------------------------------------
+	
+	for(int i=0;i<_source().record.getChildrenCount(); i++){
+        if(_source().record.getJChild(i).getString("customer_ID").matches("FTR")){
+            document._getRep(i).header.invoiceHeader.tradingPartnerId.setString("FTR");
+        }
+    }
+	
+	--------------------------------------------------------------------------------------------
+	
+	/**
+ * This Method will write out a new document for each repetition of a RepeatableGroup
+ * @Param docGroup Should be the only child of the root, with each repetition representing a new document
+ *
+ */
+private void splitOutDocs(JRepeatableGroup docGroup) {
+    ArrayList<JEntity> docList = new ArrayList<JEntity>();
+    //add each rep to a list so we can remove the group.
+    for(int i=0; i < docGroup.getChildrenCount(); i++) {
+        docList.add(docGroup.getJChild(i));
+    }
+    //remove the document group so it doesn't get written out.
+    docGroup.delete();
+    //write out each document rep as a new doc.
+    for(JEntity doc : docList) {
+        for(int i=0; i < doc.getChildrenCount(); i++) {
+            _root().add(doc.getJChild(i));
+        }
+        _root().getResolver().insert();
+        _root().getResolver().endDocument();
+        //clear for next Doc
+        while(_root().getChildrenCount() > 0) {
+            _root().getJChild(0).delete();
+        }
+    }
+}
+------------------------------------------------------------------------------------------
+If positive value in total amount, SPS to set InvoiceTypeCode = PR
+else set to CR
+
+if(summary.totalAmount.getString().contains("-")){
+        header.invoiceHeader.invoiceTypeCode.setString("CR");
+    }else{
+        header.invoiceHeader.invoiceTypeCode.setString("PR");
+    }
+	
+-------------------------------------------------------------------------------------------	-
+getString().contains("- ")
+setString("CR")
+---------------------------------------------------------------------------------------
+private void validateDate(JElement elmnt){
+    String dt = elmnt.getString();
+    try{ 
+        SimpleDateFormat myFormat = new SimpleDateFormat("yyyy-MM-dd"); 
+        myFormat.setLenient(false);//Only allow valid dates 
+        Date tempDate = myFormat.parse(dt); 
+    }
+    catch(Exception err){ 
+        elmnt.reportError(elmnt, "Invalid date \"" + dt + "\" found in "+ makeXPath(elmnt));
+    }
+}    
+
+
+if(me.hasData()){ 
+        root.validateDate(me);
+    }
+--------------------------------------------------------------------------------------------------------
+on both item level rep
+validation doc finalize --  > root.counter++;
+on wite side root
+if(!summary.totalLineItemNumber.hasData()){
+        summary.totalLineItemNumber.setNumber(counter);
+    }
+write root evn - int counter = 0;
+
+
+******************************IF qtyOrdered = 0, SPS to set orderLine.lineChangeCode = DI. Else set to RZ.******************************************
+   if(orderQty.getDouble()==0){
+        lineChangeCode.setString("DI");
+    }
+    else{
+        lineChangeCode.setString("RZ");
+    }
+	
+	
+	
+	
+	
+***************************************SPS to hardcode productOrItemDescription.productCharacteristicCode = 08.
+If value is longer than 80 characters, SPS to create a new productOrItemDescription group at the first space before 80 characters.***********************
+
+
+String NoteData = _source().description.getString();
+    
+    while(NoteData.length() > 0) {
+        productOrItemDescription.productOrItemDescriptionRep pRep = productOrItemDescription._jrepeat();
+       
+        if(NoteData.length() > 80) {
+            int char_index = 0;
+            char ch[] = NoteData.toCharArray();
+            
+            for(int i=80;i>1;i--){
+                if(ch[i]==' '){
+                    char_index = i;
+                    break;
+                }
+                else{
+                    continue;
+                }
+            }
+            
+            pRep.productCharacteristicCode.setString("08");
+            pRep.productDescription.setString(NoteData.replaceAll("(.{"+char_index+"}).*", "$1"));
+            NoteData = NoteData.replaceAll("(.{"+char_index+"})(.*)", "$2");
+        }
+        else{
+            pRep.productCharacteristicCode.setString("08");
+            pRep.productDescription.setString(NoteData);
+            NoteData = "";
+        }
+    }
+************************************If PickupDelivered = 'Pickup' or 'Drop Ship' set dateTimeQualifier = 018, if = Delivery, set dateTimeQualifier=002***
+ if(orderHeader.primaryPOTypeCode.getString().matches("Pickup|Drop Ship")){
+        dates_flat.dateTimeQualifier.setString("018");
+    }
+    else if(orderHeader.primaryPOTypeCode.getString().matches("Delivery")){
+        dates_flat.dateTimeQualifier.setString("002");
+    }
+	
+**************************Validation of date*******************************************
+Read side : Env : 
+private void validateDate(JElement elmnt){
+    String dt = elmnt.getString();
+    try{ 
+        SimpleDateFormat myFormat = new SimpleDateFormat("yyyy-MM-dd"); 
+        myFormat.setLenient(false);//Only allow valid dates 
+        Date tempDate = myFormat.parse(dt); 
+    }
+    catch(Exception err){ 
+        elmnt.reportError(elmnt, "Invalid date \"" + dt + "\" found in "+ makeXPath(elmnt));
+    }
+}    
+
+Read side on date field :
+
+if(me.hasData()){ 
+        root.validateDate(me);
+    }	
+	
+	Dumpped codes
+
+*********************************************************Other Codes******************************************************************************
+
+public void documentFinalize(ValidationEvent e) {
+    root.deactivateOptional(me);
+    root.trimFields(me);
+    
+    root.checkTpid(header.invoiceHeader.tradingPartnerId);
+    
+    // if(summary.totalAmount.hasData()){
+    //     summary.totalAmount.setString(NumberUtilities.Calc.SubtractSecondFromFirst(summary.totalAmount.getString(),String.valueOf(150)));
+    // }
+	
+	if(summary.totalAmount.getString().startsWith("-")){
+	    header.invoiceHeader.invoiceTypeCode.setString("CR");
+	}else{
+	    header.invoiceHeader.invoiceTypeCode.setString("PR");
+	}
+
+    if(!header.invoiceHeader.isActivated() &&
+       !header.paymentTerms_group.isActivated() &&
+       !header.address_group_VN.isActivated()){
+           header.delete();
+           if(!summary.isActivated()){
+               me.delete();
+           }
+       }
+    
+    if(_source().applicantPartyCode.getString().matches("SBIN-OA|STIC-OA")){
+        header.address_group_BY.addressLocationNumber.setString("4432");
+    }
+    else if(_source().applicantPartyCode.getString().matches("STAPLES-OA")){
+        header.address_group_BY.addressLocationNumber.setString("4433");
+    }
+    else{
+        reportError("Mandatory data missing in Applicant Party Code. Applicant Party Code should be one of the following: SBIN-OA or STIC-OA or STAPLES-OA.");
+    }   
+    
+    double total = summary.totalAmount.getDouble() - header.chargesAllowances_C310.allowChrgAmt.getDouble();
+    summary.totalAmount.setNumber(NumberUtilities.Format.Round(total, 2));
+}//end-method
+
+
+
+
+
+  if(fOBLocationQualifier.hasData() || fOBLocationDescription.hasData()){
+        if(!fOBLocationQualifier.hasData() || !fOBLocationDescription.hasData()){
+            reportError("");
+        }
+    }
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+<!------------------------------Environmental Variables------------------------------------------------------------->
+
+private void deactivateOptional(JEntity jentity) {
+	for (int i = 0; i < jentity.getChildrenCount(); i++) {
+		deactivateOptional(jentity.getJChild(i));
+	}
+	if (jentity instanceof JOptionalGroup) {
+		boolean needsDeactivate = true;
+		for (int i = 0; i < jentity.getChildrenCount(); i++) {
+			if(Str.HasData(jentity.getJChild(i).getPropertyString("defaultValue")) ||
+			   jentity.getJChild(i) instanceof JElement && !((JElement)jentity.getJChild(i)).hasData() ||
+			   jentity.getJChild(i) instanceof JOptionalGroup && !((JOptionalGroup)jentity.getJChild(i)).isActivated() ||
+			   jentity.getJChild(i) instanceof JRepeatableGroup && ((JRepeatableGroup)jentity.getJChild(i)).getChildrenCount() == 0){
+					continue;
+			} else {
+				needsDeactivate = false;
+				break;
+			}
+		}
+		((JOptionalGroup)jentity).setActivated(!needsDeactivate);
+	}
+}
+
+private void dateValidation(JEntity src){
+	if(((JElement)src).hasData() && !((JElement)src).getString().matches("(\\-|)[0-9][0-9][0-9][0-9][0-9]*-(0[1-9]|1[0-2])-(0[1-9]|1[0-9]|2[0-9]|3[0-1])(-12:00|-11:00|-10:00|-09:30|-09:00|-08:00|-07:00|-06:00|-05:00|-04:30|-04:00|-03:30|-03:00|-02:00|-01:00|\\+00:00|-00:00|\\+01:00|\\+02:00|\\+03:00|\\+03:30|\\+04:00|\\+04:30|\\+05:00|\\+05:30|\\+05:45|\\+06:00|\\+06:30|\\+07:00|\\+08:00|\\+08:45|\\+09:00|\\+09:30|\\+10:00|\\+10:30|\\+11:00|\\+11:30|\\+12:00|\\+12:45|\\+13:00|\\+14:00|Z|)")) {
+		((JElement)src).reportError(src,"Field " + ((JElement)src).getProperty("name") + " does not have a valid date format.");
+	}
+}
+
+private void timeCodeValidation(JElement entSource) {
+	if(entSource.hasData() && !entSource.getString().matches("(2[0-3]|1[0-9]|0[0-9]):[0-5][0-9]:[0-5][0-9](\\.[0-9][0-9]*|)(-12:00|-11:00|-10:00|-09:30|-09:00|-08:00|-07:00|-06:00|-05:00|-04:30|-04:00|-03:30|-03:00|-02:00|-01:00|\\+00:00|-00:00|\\+01:00|\\+02:00|\\+03:00|\\+03:30|\\+04:00|\\+04:30|\\+05:00|\\+05:30|\\+05:45|\\+06:00|\\+06:30|\\+07:00|\\+08:00|\\+08:45|\\+09:00|\\+09:30|\\+10:00|\\+10:30|\\+11:00|\\+11:30|\\+12:00|\\+12:45|\\+13:00|\\+14:00|Z|)")){
+		entSource.reportError(entSource,"Field " + entSource.getProperty("name") + " does not have a valid time format.");
+	}
+}
+public void init() {
+	if(me.header.orderHeader.primaryPOTypeCode.getString().equals("DS")) {
+		me.meta.isDropShip.setProperty("insert","Y");
+		me.meta.isDropShip.setString("true");
+	} else {
+		for(int i = 0; i < me.header.orderHeader.additionalPOTypeCodes.getChildrenCount(); i++) {
+			JRepetition poTypeCodeRep = (JRepetition)me.header.orderHeader.additionalPOTypeCodes.getJChild(i);
+			if(((JElement)poTypeCodeRep.getJChild("pOTypeCode")).getString().equals("DS")) {
+				me.meta.isDropShip.setProperty("insert","Y");
+				me.meta.isDropShip.setString("true");
+				break;
+			}
+		}
+	}
+}//end-method
+
+
+
+
+
+
+
+<!--If either FOBLocationQualifier or FOBLocationDescription is present, then both are required.-->
+
+checkMandatory(fOBLocationQualifier,fOBLocationDescription);
+checkMandatory(fOBLocationQualifier,fOBLocationQualifier);
+
+
+
+
+<!---- SA DA- is Drop---->
+if(header.orderHeader.primaryPOTypeCode.getString().equals("DS")) {
+		meta.isDropShip.setString("true");
+          
+      }
+		else{
+		    if(header.orderHeader.primaryPOTypeCode.getString().equals("SA")){
+		    meta.isDropShip.setString("false");}
+		}
+
+
+// /**
+//      * This method needs to be placed in the environment of a (write side) JRepeatableGroup to
+//      * override its verify() method. Add the condition you need.
+//      * @param entity FI4 passes each read side JRepetition as this parameter
+//      * @return True(will create a repetition) or False(will not create a repetition)
+//      */
+//     public boolean verify(JEntity entity) {
+//         if(entity.getString("addressTypeCode").matches("RI|ST|BT|VN")) {
+//             return true;
+//         }
+//         return false;
+//     }
+
+
+if( cond1.hasData() || cond2.hasData()){
+
+if(! cond1.has() && ! cond2.hasDta() && !cond3.hasData()){
+reportError();
+}
+
+}
+
+ if(packingMedium.hasData() && packingMaterial.hasData()){
+        if(packingMedium.getString().equals("CTN") && !packingMaterial.getString().equals("25")){
+            reportError("PackingMedium and PackingMaterial valid combination is CTN25 not.");
+        }
+        if(packingMedium.getString().equals("PLT") && !packingMaterial.getString().equals("94")){
+            reportError("PackingMedium and PackingMaterial valid combination is PLT94, not.");
+        }
+    }
+	
+	
+	
+	public void init() {
+    JRepetition firstDetRep = (JRepetition)me._orderLevel(0)._packLevel(0)._itemLevel(0);	
+	for (int i = 0; i < firstDetRep.getChildrenCount(); i++) {
+		JElement elem = (JElement) firstDetRep.getJChild(i);
+		JString newField = new JString();
+		newField.setLabel(elem.getLabel());
+		newField.setJavaName(elem.getPropertyString("javaName"));
+		newField.initialize();
+        newField.setString(elem.getLabel());
+		header.add(newField);
+	}
+}//end-method
+
+
+for(int i=0; i < _source().e2EDPT2.getChildrenCount(); j++){
+			read.iDOC.e2EDP01.e2EDP01Rep.e2EDPT1.e2EDPT1Rep.e2EDPT2.e2EDPT2Rep edpt2Rep = edpt1Rep.e2EDPT2._getRep(i);
+		
+			if(edpt2Rep.tDLINE.hasData()){
+				lineItem.lineItemRep.fieldname.setString(_source().read.fieldname.getString());
+			}
+			
+			
+			
+			String taxBE=hSTTaxAmount.getString();
+       String taxGS=gSTTaxAmount.getString();
+       String taxSP=pSTQSTTaxAmount.getString();
+       String sum=
+       taxTotalAmount.setString(NumberUtilities.Calc.Add(taxTX,taxBE,taxGS,taxSP));
+	   
+	   
+	   NumberUtilities.Calc.Multiply(lineItem._getRep(i).qTY.getString(), lineItem._getRep(i).unitPrice.getString());
+	   public void documentFinalize(ValidationEvent e) {
+    me.setString("\""+me.getString()+"\"");
+}//end-method
+  <!---CCYY-MM-DD HH:MM:SS, SPS to only source first 10 characters as the date-->
+  
+   if(me.hasData()){ 
+        try { 
+            SimpleDateFormat myFormat = new SimpleDateFormat("MM/dd/yyyy"); 
+            myFormat.setLenient(false);//Only allow valid dates 
+            Date tempDate = myFormat.parse(me.getString()); 
+        } catch (Exception err) { 
+            reportError("Invalid date \"" + me.getString() + "\" found in "+ DGEProperties.label.get(me)); 
+        } 
+    }
+	
+	--------------------------------------------------------------------------------------------------
+	
+	if(unit_quantity.getString().length() > 19){
+        reportError("unit_quantity should have min/ max length as 1 to 17.");
+    }
+	--------------------------------------------------------------------------------------------------------
+	if(me.hasData()){
+        String newPrice = me.getString();
+    
+        if (newPrice.length() > 2) {
+            int endPt = newPrice.length();
+            int decPt = endPt - 2;
+            
+            me.setString(newPrice.substring(0, decPt) +
+                        "." + newPrice.substring(decPt, endPt));
+        } else {
+            int count = 2 - newPrice.length();
+            
+            for (int i = 0; i < count; i++) {
+                newPrice = "0" + newPrice;
+            }
+            
+            me.setString("0." + newPrice);
+        }
+    }
+	--------------------------------------------Remove any * if present-----------------------------------------------
+	
+	if(me.hasData() && me.getString().contains("*")){
+        me.setString(me.getString().replaceAll("\\*",""));
+    }
+	----------------------------------for dividing----------------------------------------
+	transferLine.extendedItemTotal.setString(NumberUtilities.Calc.Multiply(_source().unitPrice.getString(),_source().shipQty.getString()));
+    measurements_group_2.messageInformationField1.setString(NumberUtilities.Calc.Divide(String.valueOf(_source().extendedContractCost.getDouble()), String.valueOf(_source().shipQty.getInt()),2));
+    measurements_group_2.messageInformationField2.setString(NumberUtilities.Calc.Divide(String.valueOf(_source().vendExtRebAmt.getDouble()), String.valueOf(_source().shipQty.getInt()),2));
+    
+	
+	
+*****************************************************************************************
+
+if(termsDiscountPercent.hasData() && (!termsDiscountDueDate.hasData() && !termsDiscDaysDue.hasData())) {
+        reportError("If TermsDIscountPercentage is sent, either TermsDiscountDate or TermsDiscountDueDays is required.");
+    }
+    
+    if(termsDiscountDueDate.hasData() && !termsDiscountPercent.hasData()) {
+        reportError("If TermsDiscountDate is sent, TermsDiscountPercentage is required.");
+    }
+    
+    if(termsDiscDaysDue.hasData() && !termsDiscountPercent.hasData()) {
+        reportError("If TermsDiscountDueDays is sent, TermsDiscountPercentage is required.");
+    }
+	
+	
+	if(root._source().header.invoiceHeader.shipDate.hasData()) {
+        date_TimeQualifier.setString("011");
+        date.setDate(root._source().header.invoiceHeader.shipDate.getDate());
+    }
+	
+	System.out.println("Anand : "+identificationCodeQualifier.getString().length());
+    if(_source().addressLocationNumber.getString().length() == 2 && _source().addressLocationNumber.getString().startsWith("0")) {
+        identificationCode.setString(_source().addressLocationNumber.getString().substring(1));
+    }
+	
+	 if(product_ServiceId1.hasData()) {
+        product_ServiceIdQualifier1.setString("VN");
+    }else if(product_ServiceId2.hasData() && !product_ServiceId1.hasData()) {
+        product_ServiceIdQualifier1.setString("SK");
+        product_ServiceId1.setString(product_ServiceId2.getString());
+    }
+    
+    if(product_ServiceId2.hasData()) {
+        product_ServiceIdQualifier2.setString("SK");
+    }
+    
+    unitPrice.setString(NumberUtilities.Format.RemoveLeadingZeros(NumberUtilities.Format.EnsureDecimalDigits(unitPrice.getString(), 4)));
+    
+
+
+
+**********************************************************************************
+
+
+//if Order/Header/ChargesAllowances/AllowChrgIndicator = 'A', output '-'
+//if Order/Header/ChargesAllowances/AllowChrgIndicator = 'C', output '+'
+//if AllowChrgIndicator is not present & if Order/Header/ChargesAllowances/AllowChrgHandlingCode = '01', output '+'
+//if AllowChrgIndicator is not present & if Order/Header/ChargesAllowances/AllowChrgHandlingCode = '02', output '-'
+
+
+//JavaCode : 
+
+if(aLCKZ.data.getString().matches("A|02")){
+        aLCKZ.data.setString("-");
+        bETRG.data.setString("-" + bETRG.data.getString());
+        kPERC.data.setString("-" + kPERC.data.getString());
+    }
+    else if(aLCKZ.data.getString().matches("C|01")){
+        aLCKZ.data.setString("+");
+    }
