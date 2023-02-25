@@ -144,3 +144,13 @@ private void activateAll(Entity entity){
                                      field + " = " + value + " is required;" + extraMsg);
         }
     }
+
+
+
+
+if(me.hasData() && me.getString().length()>35){
+        me.setString(me.getString().substring(35));
+    }
+    else{
+        me.setString("");
+    }
